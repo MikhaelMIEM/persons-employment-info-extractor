@@ -1,1 +1,1 @@
-# Persons employment info parser
+# Persons employment info extractor

@@ -1,5 +1,6 @@
 import logging
 from collections import namedtuple
+from importlib import resources
 
 import ahocorasick
 
@@ -7,7 +8,7 @@ Match = namedtuple('Match', ['start', 'end', 'match'])
 
 
 def load_titles():
-    with open('normalized_dict.txt') as gzf:
+    with resources.open_text('job_titles_parser', 'normalized_dict.txt') as gzf:
         for line in gzf:
             yield line.strip()
 

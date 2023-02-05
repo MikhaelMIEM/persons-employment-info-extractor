@@ -3,7 +3,7 @@ from __future__ import annotations
 from copy import copy
 from dataclasses import dataclass
 from enum import Enum, auto
-from itertools import product
+from itertools import product, chain
 from typing import List, Tuple, Optional
 
 
@@ -85,7 +85,38 @@ class Text:
 
 
 @dataclass
-class PersonInfo:
+class Work:
     person: Token
     companies: List[Token]
     jobs: List[Token]
+
+    @property
+    def jobs_norm_names(self) -> List[str]:
+        return [job.norm_text for job in self.jobs]
+
+    @property
+    def companies_norm_names(self) -> List[str]:
+        return [company.norm_text for company in self.companies]
+
+
+
+@dataclass
+class TextPersonInfo:
+    name_tokens: set[str]
+    work: List[Work]
+
+    @property
+    def norm_name(self) -> Optional[str]:
+        return max((i.person.norm_text for i in self.work), key=len)
+
+    @property
+    def name(self) -> Optional[str]:
+        return max((i.person.text for i in self.work), key=len)
+
+    @property
+    def jobs_norm_names(self) -> List[str]:
+        return list(chain.from_iterable(work.jobs_norm_names for work in self.work))
+
+    @property
+    def companies_norm_names(self) -> List[str]:
+        return list(chain.from_iterable(work.companies_norm_names for work in self.work))

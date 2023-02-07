@@ -100,8 +100,10 @@ class PersonStoragePostgres(PersonStorage):
             self.conn.commit()
             person_id = __get_ids_by_names("Person", [person_info.norm_name])[0]
             for work in person_info.work:
-                job_ids = __get_ids_by_names("Job", work.jobs_norm_names)
-                company_ids = __get_ids_by_names("Company", work.companies_norm_names)
+                job_ids = __get_ids_by_names("Job", work.jobs_norm_names) or ['null']
+                company_ids = __get_ids_by_names("Company", work.companies_norm_names) or ['null']
+                if ['null'] == job_ids == company_ids:
+                    continue
                 for (job_id, company_id) in product(job_ids, company_ids):
                     self.cur.execute(insert_work.substitute(person=person_id, company=company_id, job=job_id))
                     self.conn.commit()

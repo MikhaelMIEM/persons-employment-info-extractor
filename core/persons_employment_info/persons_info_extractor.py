@@ -1,12 +1,14 @@
 import string
+from typing import Callable
 
 import nltk
 import pymorphy2
 import stanza
 import unicodedata
 
-from job_titles_parser import JobTitlesParser
-from persons_employment_info_extractor.domain import *
+from core.persons_employment_info.domain import *
+from core.persons_employment_info.time_interval.time_interval_parser import parse_date_intervals, parse_date_interval
+from persons_employment_info.job_titles import JobTitlesParser
 
 # nltk.download('punkt')
 # nltk.download('averaged_perceptron_tagger')
@@ -30,7 +32,6 @@ def extract_persons_info(text: str) -> List[TextPersonInfo]:
 
 def group_persons_by_normalized_name(persons_info: List[Work]) -> List[TextPersonInfo]:
     # O(n^2) could be optimized?
-
     text_persons = []
     for person_info in persons_info:
         norm_tokens = set(person_info.person.norm_text.strip().split())
@@ -53,6 +54,12 @@ def group_entities_by_person(recognized_text: Text) -> List[Work]:
         if not names:
             continue
         sentence_persons_info = {name.norm_text: Work(name, [], []) for name in names}
+        for time_ in sentence.calc_entities_by_type(EntityType.TIME):
+            time_match = parse_date_interval(time_.norm_text)
+            closest_person = time_.eval_closest_token(names)
+            work = sentence_persons_info[closest_person.norm_text]
+            work.start_time = time_match.start_time
+            work.end_time = time_match.end_time
         for company in sentence.calc_entities_by_type(EntityType.ORG):
             closest_person = company.eval_closest_token(names)
             sentence_persons_info[closest_person.norm_text].companies.append(company)
@@ -72,18 +79,18 @@ def recognize_entities(text: str) -> Text:
             return EntityType.PER
         return EntityType.NONE
 
-    def _is_token_job(token: Token, recognized_jobs: list) -> bool:
-        for match in recognized_jobs:
-            if match.start == token.norm_start_pos:
-                return True
-        return False
-
-    def _set_job_entity(sentences: List[Sentence], norm_text: str) -> None:
-        recognized_jobs = jobs_parser.findall(norm_text)
+    def _set_entity(sentences: List[Sentence], norm_text: str, tokens_interval_func: Callable[[str], list[TextMatch]],
+                    entity_type: EntityType) -> None:
+        def _is_token_in_intervals(token: Token, token_intervals: list[TextMatch]) -> bool:
+            for interval in token_intervals:
+                if interval.start <= token.norm_start_pos < interval.end:
+                    return True
+            return False
+        tokens_intervals = tokens_interval_func(norm_text)
         for sentence in sentences:
             for token in sentence.tokens:
-                if token.entity == EntityType.NONE and _is_token_job(token, recognized_jobs):
-                    token.entity = EntityType.JOB
+                if token.entity == EntityType.NONE and _is_token_in_intervals(token, tokens_intervals):
+                    token.entity = entity_type
 
     norm_text = ''
     sentences = []
@@ -100,7 +107,8 @@ def recognize_entities(text: str) -> Text:
             )
             norm_text += norm_token + ' '
         sentences.append(Sentence(tokens))
-    _set_job_entity(sentences, norm_text)
+    _set_entity(sentences, norm_text, jobs_parser.findall, EntityType.JOB)
+    _set_entity(sentences, norm_text, parse_date_intervals, EntityType.TIME)
     return Text(text, norm_text, sentences)
 
 
@@ -111,7 +119,7 @@ def normalize_text(text: str) -> str:
         morph.parse(word)[0].normal_form.lower()
         for word in nltk.word_tokenize(norm_text)
     )
-    allowed_symbols = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя ' + string.ascii_lowercase
+    allowed_symbols = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя 1234567890' + string.ascii_lowercase
     for s in set(norm_text):
         if s not in allowed_symbols:
             norm_text = norm_text.replace(s, '')

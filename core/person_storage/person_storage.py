@@ -5,7 +5,7 @@ from itertools import product
 
 import psycopg2
 
-from persons_employment_info_extractor.domain import TextPersonInfo
+from core.persons_employment_info.domain import TextPersonInfo
 
 
 class PersonStorage(ABC):

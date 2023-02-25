@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from clients.person_storage import PersonStoragePostgres
-from persons_employment_info_extractor import extract_persons_info
+from core.person_storage.person_storage import PersonStoragePostgres
+from core.persons_employment_info import extract_persons_info
 
 text = """
     1989 — предприниматель и программист Аркадий Волож основал фирму CompTek, продававшую персональные компьютеры и занимавшуюся автоматизацией рабочих мест[27].

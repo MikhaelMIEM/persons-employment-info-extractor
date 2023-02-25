@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from copy import copy
 from dataclasses import dataclass
+from datetime import date
 from enum import Enum, auto
 from itertools import product, chain
 from typing import List, Tuple, Optional
@@ -12,6 +14,7 @@ class EntityType(Enum):
     PER = auto()
     ORG = auto()
     JOB = auto()
+    TIME = auto
 
 
 @dataclass
@@ -45,8 +48,7 @@ class Token:
         return min(abs(p[0] - p[1]) for p in product(self.norm_coordinates, token.norm_coordinates))
 
     def eval_closest_token(self, tokens: List[Token]) -> Optional[Token]:
-        closest = None
-        closest_distance = None
+        closest = closest_distance = None
         for t in tokens:
             distance = self.eval_distance(t)
             if closest_distance is None or distance < closest_distance:
@@ -89,6 +91,8 @@ class Work:
     person: Token
     companies: List[Token]
     jobs: List[Token]
+    start_time: Optional[date] = None
+    end_time: Optional[date] = None
 
     @property
     def jobs_norm_names(self) -> List[str]:
@@ -97,7 +101,6 @@ class Work:
     @property
     def companies_norm_names(self) -> List[str]:
         return [company.norm_text for company in self.companies]
-
 
 
 @dataclass
@@ -120,3 +123,29 @@ class TextPersonInfo:
     @property
     def companies_norm_names(self) -> List[str]:
         return list(chain.from_iterable(work.companies_norm_names for work in self.work))
+
+
+class TextMatch(ABC):
+
+    @property
+    @abstractmethod
+    def start(self) -> int:
+        """
+        start text position
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def end(self) -> int:
+        """
+        end text position
+        """
+        pass
+
+
+@dataclass
+class TimeStamp:
+    year: int
+    month: int
+    day: int

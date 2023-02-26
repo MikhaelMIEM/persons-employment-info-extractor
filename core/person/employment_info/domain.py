@@ -3,7 +3,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from copy import copy
 from dataclasses import dataclass
-from datetime import date
 from enum import Enum, auto
 from itertools import product, chain
 from typing import List, Tuple, Optional
@@ -88,11 +87,12 @@ class Text:
 
 @dataclass
 class Work:
+
     person: Token
     companies: List[Token]
     jobs: List[Token]
-    start_time: Optional[date] = None
-    end_time: Optional[date] = None
+    start_time: Optional[TimeStamp] = None
+    end_time: Optional[TimeStamp] = None
 
     @property
     def jobs_norm_names(self) -> List[str]:
@@ -101,6 +101,13 @@ class Work:
     @property
     def companies_norm_names(self) -> List[str]:
         return [company.norm_text for company in self.companies]
+
+
+@dataclass
+class TimeStamp:
+    year: int
+    month: int
+    day: int
 
 
 @dataclass
@@ -126,26 +133,5 @@ class TextPersonInfo:
 
 
 class TextMatch(ABC):
-
-    @property
-    @abstractmethod
-    def start(self) -> int:
-        """
-        start text position
-        """
-        pass
-
-    @property
-    @abstractmethod
-    def end(self) -> int:
-        """
-        end text position
-        """
-        pass
-
-
-@dataclass
-class TimeStamp:
-    year: int
-    month: int
-    day: int
+    start: int
+    end: int

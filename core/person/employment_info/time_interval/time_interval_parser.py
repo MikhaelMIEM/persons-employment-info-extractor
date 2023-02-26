@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from datetime import date
 from typing import Optional
 
 from yargy import Parser, rule, and_, or_
@@ -11,7 +10,7 @@ from yargy.predicates import (
     in_
 )
 
-from persons_employment_info.domain import TextMatch
+from person.employment_info.domain import TextMatch, TimeStamp
 
 Interval = fact(
     'Interval',
@@ -44,32 +43,29 @@ DELIMITER = in_({'-', '.', '_', '/', ','})
 
 interval_rule = rule(
     rule(
+        dictionary({'с'}).optional(),
         DAY.optional().interpretation(Interval.start_day.custom(int)),
         DELIMITER.optional(),
         or_(
             MONTH_NAME.interpretation(Interval.start_month.normalized().custom(MONTHS.get)),
             MONTH_NUM.interpretation(Interval.start_month.custom(int)),
-        ),
+        ).optional(),
         DELIMITER.optional(),
-        YEAR.interpretation(Interval.start_year.custom(int))
+        YEAR.interpretation(Interval.start_year.custom(int)),
+        dictionary({'г', 'г.', 'год'}).optional(),
     ).optional(),
-    in_({'до', 'по'}).optional(),
-    or_(
-        rule(
-            DAY.optional().interpretation(Interval.end_day.custom(int)),
-            DELIMITER.optional(),
-            or_(
-                MONTH_NAME.interpretation(Interval.end_month.normalized().custom(MONTHS.get)),
-                MONTH_NUM.interpretation(Interval.end_month.custom(int)),
-            ),
-            DELIMITER.optional(),
-            YEAR.interpretation(Interval.end_year.custom(int))
-        ),
-        rule(
-            YEAR.interpretation(Interval.end_year.custom(int)),
-            dictionary({'г', 'г.', 'год'}),
-        ),
-    )
+    dictionary({'до', 'по'}).optional(),
+    rule(
+        DAY.optional().interpretation(Interval.end_day.custom(int)),
+        DELIMITER.optional(),
+        or_(
+            MONTH_NAME.interpretation(Interval.end_month.normalized().custom(MONTHS.get)),
+            MONTH_NUM.interpretation(Interval.end_month.custom(int)),
+        ).optional(),
+        DELIMITER.optional(),
+        YEAR.interpretation(Interval.end_year.custom(int)),
+        dictionary({'г', 'г.', 'год'}).optional()
+    ),
 ).interpretation(Interval)
 
 parser = Parser(interval_rule)
@@ -77,30 +73,30 @@ parser = Parser(interval_rule)
 
 @dataclass
 class TimeIntervalMatch(TextMatch):
-    start: int
-    end: int
     match: str
     interval: Interval
+    start: int
+    end: int
 
     @property
-    def start_time(self) -> Optional[date]:
+    def start_time(self) -> Optional[TimeStamp]:
         if self.interval.start_year:
-            return date(self.interval.start_year, self.interval.start_month or 6, self.interval.start_day or 15)
+            return TimeStamp(self.interval.start_year, self.interval.start_month, self.interval.start_day)
 
     @property
-    def end_time(self) -> Optional[date]:
+    def end_time(self) -> Optional[TimeStamp]:
         if self.interval.end_year:
-            return date(self.interval.end_year, self.interval.end_month or 6, self.interval.end_day or 15)
+            return TimeStamp(self.interval.end_year, self.interval.end_month, self.interval.end_day)
 
 
 def parse_date_intervals(text: str) -> list[TimeIntervalMatch]:
     intervals = []
     for match in parser.findall(text):
         start, end = match.tokens[0].span.start, match.tokens[-1].span.stop
-        intervals.append(TimeIntervalMatch(start, end, text[start:end], match.fact))
+        intervals.append(TimeIntervalMatch(text[start:end], match.fact, start, end))
     return intervals
 
 def parse_date_interval(text: str) -> Optional[TimeIntervalMatch]:
-    for match in parser.findall(text):
-        start, end = match.tokens[0].span.start, match.tokens[-1].span.stop
-        return TimeIntervalMatch(start, end, text[start:end], match.fact)
+    intervals = parse_date_intervals(text)
+    if intervals:
+        return intervals[0]

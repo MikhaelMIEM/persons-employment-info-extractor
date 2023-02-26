@@ -5,7 +5,7 @@ from itertools import product
 
 import psycopg2
 
-from core.persons_employment_info.domain import TextPersonInfo
+from person.employment_info.domain import TextPersonInfo
 
 
 class PersonStorage(ABC):
@@ -14,6 +14,9 @@ class PersonStorage(ABC):
         pass
 
 class PersonStoragePostgres(PersonStorage):
+
+    NULL = 'null'
+
     def __init__(self, database: str, user: str, password: str, host: str = '127.0.0.1', port: int = 5432):
         self.conn = psycopg2.connect(database=database, user=user, password=password, host=host, port=port)
         self.cur = self.conn.cursor()
@@ -51,7 +54,11 @@ class PersonStoragePostgres(PersonStorage):
             person integer references Person,
             company integer references Company,
             job integer references Job,
-            unique(person, company, job)
+            start_year integer,
+            start_month integer,
+            end_year integer,
+            end_month integer,
+            unique(person, company, job, start_year, start_month, end_year, end_month)
         )        
         """
         self.cur.execute(create_person_table)
@@ -78,7 +85,9 @@ class PersonStoragePostgres(PersonStorage):
         )
         insert_work = Template(
             """
-            insert into Work (person, company, job) values (${person}, ${company}, ${job}) on conflict do nothing
+            insert into Work (person, company, job, start_year, start_month, end_year, end_month) 
+            values (${person}, ${company}, ${job}, ${start_year}, ${start_month}, ${end_year}, ${end_month}) 
+            on conflict do nothing
             """
         )
 
@@ -100,10 +109,21 @@ class PersonStoragePostgres(PersonStorage):
             self.conn.commit()
             person_id = __get_ids_by_names("Person", [person_info.norm_name])[0]
             for work in person_info.work:
-                job_ids = __get_ids_by_names("Job", work.jobs_norm_names) or ['null']
-                company_ids = __get_ids_by_names("Company", work.companies_norm_names) or ['null']
-                if ['null'] == job_ids == company_ids:
+                company_ids = __get_ids_by_names("Company", work.companies_norm_names) or [self.NULL]
+                if [self.NULL] == company_ids:
                     continue
+                job_ids = __get_ids_by_names("Job", work.jobs_norm_names) or [self.NULL]
                 for (job_id, company_id) in product(job_ids, company_ids):
-                    self.cur.execute(insert_work.substitute(person=person_id, company=company_id, job=job_id))
+                    self.cur.execute(
+                        insert_work.substitute(
+                            person=person_id,
+                            company=company_id,
+                            job=job_id,
+                            start_year=work.start_time.year if work.start_time and work.start_time.year else self.NULL,
+                            start_month=work.start_time.month
+                                if work.start_time and work.start_time.month else self.NULL,
+                            end_year=work.end_time.year if work.end_time and work.end_time.year else self.NULL,
+                            end_month=work.end_time.month if work.end_time and work.end_time.month else self.NULL,
+                        )
+                    )
                     self.conn.commit()

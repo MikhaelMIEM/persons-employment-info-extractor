@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 
-from persons_info_extractor import extract_persons_info
+from person.storage.person_storage import PersonStoragePostgres
+from person.employment_info.persons_info_extractor import extract_persons_info
 
 text = """
     в 1993 году Василий Абобович работал в компании NetCracker.
+    с 1992 по 2003 год Игорь Абраменко работал в компании LinkTech.
     1989 — предприниматель и программист Аркадий Волож основал фирму CompTek, продававшую персональные компьютеры и занимавшуюся автоматизацией рабочих мест[27].
     1993 — компания CompTek создала программу для поиска на жёстком диске компьютера. Программу назвали «Yandex», название придумали Илья Сегалович, директор «Яндекса» по технологиям, и генеральный директор компании — Аркадий Волож. Сегалович выписывал разные производные от слов, описывающих суть технологии. В результате появился вариант «yandex» — Yet ANother inDEXer («ещё один индексатор»)[28].
     Сотрудничая с Институтом проблем передачи информации, CompTek создала словарь с поиском, который учитывал морфологию русского языка[29][30].
@@ -36,10 +38,5 @@ text = """
 
 if __name__ == '__main__':
     text_persons = extract_persons_info(text)
-    for person in text_persons:
-        print(person.norm_name)
-        for info in person.work:
-            print('\t' + str(info.start_time))
-            print('\t' + str(info.end_time))
-            print('\t' + "jobs: " +  str([j.norm_text for j in info.jobs]))
-            print('\t' + 'comp: ' + str([j.norm_text for j in info.companies]))
+    cli = PersonStoragePostgres('postgres', 'postgres', 'abota5432')
+    cli.push_person_info(text_persons)

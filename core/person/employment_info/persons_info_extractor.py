@@ -1,14 +1,14 @@
 import string
-from typing import Callable
+from typing import Callable, List
 
 import nltk
 import pymorphy2
 import stanza
 import unicodedata
 
-from core.persons_employment_info.domain import *
-from core.persons_employment_info.time_interval.time_interval_parser import parse_date_intervals, parse_date_interval
-from persons_employment_info.job_titles import JobTitlesParser
+from person.employment_info.domain import TextPersonInfo, EntityType, Text, Work, TextMatch, Sentence, Token
+from person.employment_info.job_titles import JobTitlesParser
+from person.employment_info.time_interval.time_interval_parser import parse_date_intervals, parse_date_interval
 
 # nltk.download('punkt')
 # nltk.download('averaged_perceptron_tagger')
@@ -25,7 +25,9 @@ nlp = stanza.Pipeline(lang='ru', processors='tokenize,ner')
 # API
 
 def extract_persons_info(text: str) -> List[TextPersonInfo]:
-    return group_persons_by_normalized_name(group_entities_by_person(recognize_entities(text)))
+    entities_text = recognize_entities(text)
+    works = group_entities_by_person(entities_text)
+    return group_persons_by_normalized_name(works)
 
 
 # Implementation
@@ -58,8 +60,8 @@ def group_entities_by_person(recognized_text: Text) -> List[Work]:
             time_match = parse_date_interval(time_.norm_text)
             closest_person = time_.eval_closest_token(names)
             work = sentence_persons_info[closest_person.norm_text]
-            work.start_time = time_match.start_time
-            work.end_time = time_match.end_time
+            work.start_time = time_match.start_time if time_match else None
+            work.end_time = time_match.end_time if time_match else None
         for company in sentence.calc_entities_by_type(EntityType.ORG):
             closest_person = company.eval_closest_token(names)
             sentence_persons_info[closest_person.norm_text].companies.append(company)

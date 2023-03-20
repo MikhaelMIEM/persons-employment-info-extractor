@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from yargy import rule, and_, or_
+from yargy import rule, and_, or_, Parser
 from yargy.interpretation import fact
 from yargy.predicates import (
     lte,
@@ -9,7 +9,6 @@ from yargy.predicates import (
     in_
 )
 
-from time_interval_parser import parse_date_intervals
 
 Date = fact(
     'Date',
@@ -83,5 +82,11 @@ c июня 2017 до июля 2018
     с 1992 по 2003 год Игорь Абраменко работал в компании LinkTech.
     """
 
-    inters = parse_date_intervals(text)
-    print([(i.start_time, i.end_time) for i in inters])
+    # inters = parse_date_intervals(text)
+    # print([(i.start_time, i.end_time) for i in inters])
+
+
+    # dict test
+    r = rule(dictionary(['генерал']))
+    p = Parser(r)
+    print(list(p.findall('генерал')))

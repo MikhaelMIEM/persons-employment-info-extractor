@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import string
 from abc import ABC, abstractmethod
 from copy import copy
 from dataclasses import dataclass
 from enum import Enum, auto
 from itertools import product, chain
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Callable
+
+import nltk
+import pymorphy2
+import unicodedata
 
 
 class EntityType(Enum):
@@ -77,6 +82,14 @@ class Sentence:
     def calc_entities_by_type(self, entity_type: EntityType) -> List[Token]:
         return list(e for e in self.entities if e.entity == entity_type)
 
+    @property
+    def norm_text(self):
+        return ' '.join(token.norm_text for token in self.tokens)
+
+    @property
+    def text(self):
+        return ' '.join(token.text for token in self.tokens)
+
 
 @dataclass
 class Text:
@@ -87,7 +100,6 @@ class Text:
 
 @dataclass
 class Work:
-
     person: Token
     companies: List[Token]
     jobs: List[Token]
@@ -132,6 +144,51 @@ class TextPersonInfo:
         return list(chain.from_iterable(work.companies_norm_names for work in self.work))
 
 
-class TextMatch(ABC):
+@dataclass
+class TextMatch:
+    match: str
     start: int
     end: int
+
+
+class EntitiesRecognizer(ABC):
+    @abstractmethod
+    def recognize_entities(self, text: str) -> Text:
+        pass
+
+    @classmethod
+    def _set_entity(cls, sentences: List[Sentence], norm_text: str, tokens_interval_func: Callable[[str],
+                    list[TextMatch]], entity_type: EntityType) -> None:
+        tokens_intervals: list[TextMatch] = tokens_interval_func(norm_text)
+        for sentence in sentences:
+            for token in sentence.tokens:
+                if token.entity == EntityType.NONE and cls._is_token_in_intervals(token, tokens_intervals):
+                    token.entity = entity_type
+
+    @staticmethod
+    def _is_token_in_intervals(token: Token, token_intervals: list[TextMatch]) -> bool:
+        for interval in token_intervals:
+            if interval.start <= token.norm_start_pos < interval.end:
+                return True
+        return False
+
+
+#########
+# Utils #
+#########
+
+morph = pymorphy2.MorphAnalyzer()
+
+
+def normalize_text(text: str) -> str:
+    norm_text = text
+    norm_text = unicodedata.normalize("NFKD", norm_text)
+    norm_text = ' '.join(
+        morph.parse(word)[0].normal_form.lower()
+        for word in nltk.word_tokenize(norm_text)
+    )
+    allowed_symbols = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя 1234567890' + string.ascii_lowercase
+    for s in set(norm_text):
+        if s not in allowed_symbols:
+            norm_text = norm_text.replace(s, '')
+    return norm_text.strip()

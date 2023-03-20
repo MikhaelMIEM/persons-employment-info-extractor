@@ -73,10 +73,7 @@ parser = Parser(interval_rule)
 
 @dataclass
 class TimeIntervalMatch(TextMatch):
-    match: str
     interval: Interval
-    start: int
-    end: int
 
     @property
     def start_time(self) -> Optional[TimeStamp]:
@@ -93,8 +90,9 @@ def parse_date_intervals(text: str) -> list[TimeIntervalMatch]:
     intervals = []
     for match in parser.findall(text):
         start, end = match.tokens[0].span.start, match.tokens[-1].span.stop
-        intervals.append(TimeIntervalMatch(text[start:end], match.fact, start, end))
+        intervals.append(TimeIntervalMatch(text[start:end], start, end, match.fact))
     return intervals
+
 
 def parse_date_interval(text: str) -> Optional[TimeIntervalMatch]:
     intervals = parse_date_intervals(text)

@@ -5,7 +5,6 @@ from typing import List
 
 from person.employment_info.domain import TextPersonInfo, Work, EntityType, Text, EntitiesRecognizer
 from person.employment_info.natasha_impl.natasha_impl import NatashaEntitiesRecognizer
-from person.employment_info.stanza_impl.stanza_impl import StanzaEntitiesRecognizer
 from person.employment_info.time_interval.time_interval_parser import parse_date_interval
 
 

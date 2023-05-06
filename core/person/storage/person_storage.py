@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
+from itertools import product
 from string import Template
 from typing import List
-from itertools import product
 
 import psycopg2
 
@@ -10,7 +10,7 @@ from person.employment_info.domain import TextPersonInfo
 
 class PersonStorage(ABC):
     @abstractmethod
-    def push_person_info(self, info: TextPersonInfo) -> None:
+    def push_person_info(self, info: TextPersonInfo, source_id: str) -> None:
         pass
 
 class PersonStoragePostgres(PersonStorage):
@@ -58,7 +58,8 @@ class PersonStoragePostgres(PersonStorage):
             start_month integer,
             end_year integer,
             end_month integer,
-            unique(person, company, job, start_year, start_month, end_year, end_month)
+            source_id varchar(100),
+            unique(person, company, job, start_year, start_month, end_year, end_month, source_id)
         )        
         """
         self.cur.execute(create_person_table)
@@ -67,7 +68,7 @@ class PersonStoragePostgres(PersonStorage):
         self.cur.execute(create_work_table)
         self.conn.commit()
 
-    def push_person_info(self, info: List[TextPersonInfo]) -> None:
+    def push_person_info(self, info: List[TextPersonInfo], source_id: str) -> None:
         insert_person = Template(
             """
             insert into Person (norm_name) values ('${norm_name}') on conflict do nothing
@@ -85,8 +86,10 @@ class PersonStoragePostgres(PersonStorage):
         )
         insert_work = Template(
             """
-            insert into Work (person, company, job, start_year, start_month, end_year, end_month) 
-            values (${person}, ${company}, ${job}, ${start_year}, ${start_month}, ${end_year}, ${end_month}) 
+            insert into Work (person, company, job, start_year, start_month, end_year, end_month, source_id) 
+            values (
+                ${person}, ${company}, ${job}, ${start_year}, ${start_month}, ${end_year}, ${end_month}, '${source_id}'
+            ) 
             on conflict do nothing
             """
         )
@@ -124,6 +127,7 @@ class PersonStoragePostgres(PersonStorage):
                                 if work.start_time and work.start_time.month else self.NULL,
                             end_year=work.end_time.year if work.end_time and work.end_time.year else self.NULL,
                             end_month=work.end_time.month if work.end_time and work.end_time.month else self.NULL,
+                            source_id=source_id
                         )
                     )
                     self.conn.commit()
